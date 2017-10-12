@@ -58,55 +58,51 @@ var delta = 0;
 var sliderY = parseInt(slider.style.top);
 var sliderHeight = parseInt(slider.style.height);
 
-function onCtrlPitchPress(e){
+function onCtrlPitchPress(e) {
     isPitchDrag = true;
     delta = 0;
-    mouseStartY = e.screenY;    
+    mouseStartY = e.screenY;
     pitchStartY = parseInt(ctrlPitch.style.top) + ctrlPitchHeight / 2;
 }
 
-function onMouseMove(e){
-    if(isPitchDrag){        
+function onMouseMove(e) {
+    if (isPitchDrag) {
         delta = e.screenY - mouseStartY;
-        
-        if(pitchStartY + delta > sliderY + sliderHeight){
+
+        if (pitchStartY + delta > sliderY + sliderHeight) {
             delta = sliderY + sliderHeight - pitchStartY;
-        }
-        else if(pitchStartY + delta < sliderY){         
+        } else if (pitchStartY + delta < sliderY) {
             delta = sliderY - pitchStartY;
         }
-
-        //ctrlPitch.style.top = (pitchStartY + delta - ctrlPitchHeight / 2) + "px";
 
         var percent = (2 * maxPitch * (pitchStartY + delta - sliderY - sliderHeight / 2) / sliderHeight).toFixed(1);
         setPitch(percent);
     }
 }
 
-function onMouseUp(e){
+function onMouseUp(e) {
     isPitchDrag = false;
 
-    if(delta === 0){
+    if (delta === 0) {
         ctrlPitch.style.top = "96px";
         player.playbackRate = 1;
-        spanPitch.innerHTML = "0.0%";    
+        spanPitch.innerHTML = "0.0%";
     }
 }
 
-function setPitch(percent){
-    if(percent > maxPitch){
+function setPitch(percent) {
+    if (percent > maxPitch) {
         percent = maxPitch;
-    } 
-    else if (percent < -maxPitch){
+    } else if (percent < -maxPitch) {
         percent = -maxPitch;
     }
 
     percent = Math.round(percent * 10) / 10;
 
     player.playbackRate = 1 + percent / 100;
-    ctrlPitch.style.top = (sliderY - ctrlPitchHeight/2 + (1 + percent / maxPitch) * sliderHeight / 2) + "px";
-    spanPitch.innerHTML = percent.toFixed(1) + "%"; 
-    
+    ctrlPitch.style.top = (sliderY - ctrlPitchHeight / 2 + (1 + percent / maxPitch) * sliderHeight / 2) + "px";
+    spanPitch.innerHTML = percent.toFixed(1) + "%";
+
     currentPitch = percent;
 }
 
@@ -117,69 +113,84 @@ document.addEventListener("mouseup", onMouseUp, false);
 window.addEventListener("keydown", keyEvent);
 
 var iFrame = document.getElementById("myIframe");
-iFrame.onload = function (e) {
-    if(iFrame.src === "https://www.deejay.de/content.php?param=/start"){
+
+iFrame.onload = function(e) {
+    if (iFrame.src === "https://www.deejay.de/content.php?param=/start") {
         var cart = iFrame.contentWindow.document.getElementById("sidebar");
         tracks = cart.getElementsByTagName("dl");
-    } else if (iFrame.src === "https://www.deejay.de/content.php?param=/m_Info/sm_Cart"){
+    } else if (iFrame.src === "https://www.deejay.de/content.php?param=/m_Info/sm_Cart") {
         var cart = iFrame.contentWindow.document.getElementsByTagName("tbody")[0];
         tracks = cart.getElementsByTagName("tr");
     } else {
         tracks = iFrame.contentWindow.document.getElementsByClassName("main_container");
     }
-    
+
     selectedTrackElement = undefined;
     selectedIndex = -1;
-    
-    iFrame.contentWindow.addEventListener("mousemove", onMouseMove, false);
-    iFrame.contentWindow.addEventListener("mouseup", onMouseUp, false);
-    iFrame.contentWindow.addEventListener("keydown", keyEvent);
+
+    iFrame.contentWindow.document.addEventListener("mousemove", onMouseMove, false);
+    iFrame.contentWindow.document.addEventListener("mouseup", onMouseUp, false);
+    iFrame.contentWindow.document.addEventListener("keydown", keyEvent);
 }
 
 function keyEvent(key) {
-    if(key.code === "ArrowRight"){
+    if (document.activeElement &&
+        document.activeElement.tagName &&
+        (
+            document.activeElement.tagName.toLowerCase() === "textarea" ||
+            document.activeElement.tagName.toLowerCase() === "input")
+    ) {
+        return;
+    }
+
+    if (iFrame.contentWindow.activeElement &&
+        iFrame.contentWindow.activeElement.tagName &&
+        (
+            iFrame.contentWindow.activeElement.tagName.toLowerCase() === "textarea" ||
+            iFrame.contentWindow.activeElement.tagName.toLowerCase() === "input")
+    ) {
+        return;
+    }
+
+    if (key.code === "ArrowRight") {
         window.player.currentTime += 5;
         key.preventDefault();
-    }
-    else if(key.code === "ArrowLeft"){
+    } else if (key.code === "ArrowLeft") {
         window.player.currentTime -= 5;
         key.preventDefault();
     }
-    if(key.code === "ArrowUp"){
+    if (key.code === "ArrowUp") {
         onPrevClick();
+        setPitch(0)
         key.preventDefault();
-    }
-    else if(key.code === "ArrowDown"){
+    } else if (key.code === "ArrowDown") {
         onNextClick();
+        setPitch(0)
         key.preventDefault();
     }
-    if(key.code === "PageDown"){        
+    if (key.code === "PageDown") {
         selectedIndex++;
-        if(selectedIndex >= tracks.length){
+        if (selectedIndex >= tracks.length) {
             selectedIndex = tracks.length - 1;
         }
         playSelectedRecord();
         key.preventDefault();
-    }
-    else if(key.code === "PageUp"){
+    } else if (key.code === "PageUp") {
         selectedIndex--;
-        if(selectedIndex < 0){
+        if (selectedIndex < 0) {
             selectedIndex = 0;
         }
         playSelectedRecord();
         key.preventDefault();
-    }
-    else if(key.key === "+"){
+    } else if (key.key === "+") {
         setPitch(currentPitch + 0.1);
         key.preventDefault();
-    }
-    else if(key.key === "-"){
+    } else if (key.key === "-") {
         setPitch(currentPitch - 0.1);
         key.preventDefault();
-    }
-    else if(key.keyCode === 32){
-        if (window.player.paused || window.player.ended) {          
-            
+    } else if (key.keyCode === 32) {
+        if (window.player.paused || window.player.ended) {
+
             play(false);
             window.player.currentTime = currentTime;
         } else {
@@ -191,24 +202,24 @@ function keyEvent(key) {
 }
 
 function playSelectedRecord() {
-    if(selectedTrackElement){
+    if (selectedTrackElement) {
         selectedTrackElement.style.background = previousColor;
     }
 
     selectedTrackElement = tracks[selectedIndex];
 
-    if(selectedTrackElement){        
+    if (selectedTrackElement) {
         previousColor = selectedTrackElement.style.background;
-        selectedTrackElement.style.background = "rgba(255, 217, 170, 0.2)";
+        selectedTrackElement.style.background = "rgba(255, 217, 170, 0.5)";
 
-        if(iFrame.src === "https://www.deejay.de/content.php?param=/start" ||
-            iFrame.src === "https://www.deejay.de/content.php?param=/m_Info/sm_Cart"){
+        if (iFrame.src === "https://www.deejay.de/content.php?param=/start" ||
+            iFrame.src === "https://www.deejay.de/content.php?param=/m_Info/sm_Cart") {
             var play = selectedTrackElement.getElementsByClassName("play")[0];
             play.click();
         } else {
             var playAll = selectedTrackElement.getElementsByClassName("playAll")[0];
             playAll.click();
-    
+
             var openit = selectedTrackElement.getElementsByClassName("openit")[0];
             openit.click();
         }
