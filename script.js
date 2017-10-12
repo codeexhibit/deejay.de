@@ -143,11 +143,11 @@ function keyEvent(key) {
         return;
     }
 
-    if (iFrame.contentWindow.activeElement &&
-        iFrame.contentWindow.activeElement.tagName &&
+    if (iFrame.contentWindow.document.activeElement &&
+        iFrame.contentWindow.document.activeElement.tagName &&
         (
-            iFrame.contentWindow.activeElement.tagName.toLowerCase() === "textarea" ||
-            iFrame.contentWindow.activeElement.tagName.toLowerCase() === "input")
+            iFrame.contentWindow.document.activeElement.tagName.toLowerCase() === "textarea" ||
+            iFrame.contentWindow.document.activeElement.tagName.toLowerCase() === "input")
     ) {
         return;
     }
