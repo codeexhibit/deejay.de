@@ -137,6 +137,39 @@ iFrame.onload = function(e) {
 
 iFrame.contentWindow.location.reload();
 
+function http(method, url, data, contentType) {
+    return new Promise((resolve, reject) => {
+        var xhr = new XMLHttpRequest();
+        xhr.open(method, url, true);
+        if (contentType) {
+            xhr.setRequestHeader("Content-Type", contentType);
+        }
+
+        xhr.send(data);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    resolve(xhr.responseText);
+                } else {
+                    reject();
+                }
+            }
+        }
+    });
+}
+
+function getAllInvoices() {
+    return http(
+        "GET",
+        window.location.origin + "/ajaxHelper/findInvoice.php?searchVal=&rand=" + Math.random()
+    ).then((response) => {
+        var body = iFrame.contentWindow.document.createElement("body");
+        body.innerHTML = "<body>" + response + "</body>";
+
+        return body.getElementsByClassName("invoiceLink noMod");
+    });
+}
+
 function addShowAllRecords() {
     if (window.location.href === "https://www.deejay.de/m_myDeejay/sm_myInvoices") {
         var invoicesFilter = iFrame.contentWindow.document.querySelectorAll(".invoices_filter tr td")[1];
@@ -145,6 +178,7 @@ function addShowAllRecords() {
         link.href = "#";
         link.innerHTML = "Show all records";
         link.style = "padding-right: 20px";
+        invoicesFilter.insertBefore(link, invoicesFilter.childNodes[0]);
 
         link.onclick = (event) => {
             var tds = iFrame.contentWindow.document.querySelectorAll("#rechnungsPositionen .invoice td");
@@ -155,64 +189,65 @@ function addShowAllRecords() {
             var tbody = iFrame.contentWindow.document.querySelectorAll("#rechnungsPositionen .mycart tbody")[0];
             tbody.innerHTML = "";
 
-            var invoicesLinks = iFrame.contentWindow.document.getElementsByClassName("invoiceLink noMod");
-            var invoicePromises = [...invoicesLinks].map(invoicesLink => {
-                return new Promise((resolve, reject) => {
-                    var xhr = new XMLHttpRequest();
-                    xhr.open("POST", window.location.origin + "/ajaxHelper/showRePositionen.php", true);
-                    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+            getAllInvoices().then((invoicesLinks) => {
+                var invoicePromises = [...invoicesLinks].map(invoicesLink => {
+                    return http(
+                        "POST",
+                        window.location.origin + "/ajaxHelper/showRePositionen.php",
+                        "id=" + invoicesLink.getAttribute("data-id"),
+                        "application/x-www-form-urlencoded; charset=UTF-8"
+                    )
+                });
 
-                    xhr.send("id=" + invoicesLink.getAttribute("data-id"));
+                Promise.all(invoicePromises).then((results) => {
+                    var sum = 0;
+                    var total = 0;
 
-                    xhr.onreadystatechange = function() {
-                        if (xhr.readyState === XMLHttpRequest.DONE) {
-                            if (xhr.status === 200) {
-                                resolve(xhr.responseText);
-                            } else {
-                                reject();
+                    results.forEach(result => {
+                        var body = iFrame.contentWindow.document.createElement("body");
+                        body.innerHTML = "<body>" + result + "</body>";
+
+                        var trsToAppend = [];
+                        for (var tr of body.childNodes[1].childNodes[1].getElementsByTagName("tr")) {
+                            if (tr.childNodes[5].innerHTML !== "&nbsp;") {
+                                trsToAppend.push(tr);
                             }
                         }
-                    }
+
+                        for (var tr of trsToAppend) {
+                            var quantity = Number.parseInt(tr.childNodes[4].innerText);
+                            var value = quantity * Number.parseFloat(tr.childNodes[3].innerText.replace(".", "").replace(",", ".").slice(0, -2));
+
+                            if (value > 0) {
+                                total += quantity;
+                                sum += value;
+                                tbody.appendChild(tr);
+                            }
+                        }
+                    });
+
+                    tds[3].innerHTML = `<strong>Sum: ${total} Pcs. / ${sum.toFixed(2)} €</strong>`;
                 });
             });
+            /*
+                        var tds = iFrame.contentWindow.document.querySelectorAll("#rechnungsPositionen .invoice td");
+                        tds[0].innerHTML = "<h2>All items</h2><strong>&nbsp;</strong>";
+                        tds[1].innerHTML = "";
+                        tds[2].innerHTML = "";
 
-            Promise.all(invoicePromises).then((results) => {
-                var sum = 0;
-                var total = 0;
+                        var tbody = iFrame.contentWindow.document.querySelectorAll("#rechnungsPositionen .mycart tbody")[0];
+                        tbody.innerHTML = "";
 
-                results.forEach(result => {
-                    var body = iFrame.contentWindow.document.createElement("body");
-                    body.innerHTML = "<body>" + result + "</body>";
+                        var invoicesLinks = iFrame.contentWindow.document.getElementsByClassName("invoiceLink noMod");
+                        var invoicePromises = 
 
-                    var trsToAppend = [];
-                    for (var tr of body.childNodes[1].childNodes[1].getElementsByTagName("tr")) {
-                        if (tr.childNodes[5].innerHTML !== "&nbsp;") {
-                            trsToAppend.push(tr);
-                        }
-                    }
-
-                    for (var tr of trsToAppend) {
-                        var quantity = Number.parseInt(tr.childNodes[4].innerText);
-                        var value = quantity * Number.parseFloat(tr.childNodes[3].innerText.replace(".", "").replace(",", ".").slice(0, -2));
-
-                        if (value > 0) {
-                            total += quantity;
-                            sum += value;
-                            tbody.appendChild(tr);
-                        }
-                    }
-                });
-
-                tds[3].innerHTML = `<strong>Sum: ${total} Pcs. / ${sum.toFixed(2)} €</strong>`;
-            });
-
-            event.returnValue = false;
-            event.preventDefault();
-            event.stopPropagation();
-            return false;
+                        event.returnValue = false;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        return false;*/
         };
 
-        invoicesFilter.insertBefore(link, invoicesFilter.childNodes[0]);
+
     }
 }
 
